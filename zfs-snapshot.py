@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# SPDX-License-Identifier: BSD-2-Clause
+
 import datetime
 import subprocess
 import operator
@@ -6,6 +9,7 @@ import time
 import syslog
 
 class ZfsSnapshot:
+	'''Represents a single ZFS snapshot.'''
 	def __init__ (self, path, name, date):
 		self._path = path
 		self._name = name
