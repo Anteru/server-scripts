@@ -3,6 +3,7 @@ import datetime
 import subprocess
 import operator
 import time
+import syslog
 
 class ZfsSnapshot:
 	def __init__ (self, path, name, date):
@@ -77,7 +78,7 @@ def CreateSnapshot (pool):
 	dt = datetime.datetime.utcnow ()
 	snapshotName = dt.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
 	subprocess.check_call (['zfs', 'snapshot', '-r', '{}@{}'.format (pool, snapshotName)])
-	subprocess.check_call (['logger', '-t', 'zfs-snapshot', 'Created snapshot: {}'.format (snapshotName)])
+	syslog.syslog (syslog.LOG_INFO, 'Created snapshot: {0}'.format (snapshotName))
 	return ZfsSnapshot (pool, 'shadow_copy', dt)
 
 def DestroySnapshot (pool, snapshot):
@@ -91,7 +92,7 @@ def DestroySnapshot (pool, snapshot):
 
 	snapshotName = snapshot.GetTimestamp ().strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
 	subprocess.check_call (['zfs', 'destroy', '-r', '{}@{}'.format (pool, snapshotName)])
-	subprocess.check_call (['logger', '-t', 'zfs-snapshot', 'Destroyed snapshot: {}'.format (snapshotName)])
+	syslog.syslog (syslog.LOG_INFO, 'Destroyed snapshot: {0}'.format (snapshotName))
 
 def FindPools ():
 	'''Find all ZFS pools.'''
@@ -206,7 +207,6 @@ def FilterSnapshots (s):
 	]
 
 	toKeep = set ()
-	toDelete = set (s)
 	remainingSnapshots = s
 	for i in range (len (filterCutoff) - 1):
 		currentFilter = filterCutoff [i][0]
@@ -218,6 +218,7 @@ def FilterSnapshots (s):
 			lambda s: cutoff < (now - s.GetTimestamp ()) <= nextCutoff)
 		toKeep.update (currentFilter.Apply (activeSnaps))
 
+	toDelete = set (s)
 	toDelete.difference_update (toKeep)
 
 	# Deleting in reversed order is supposed to be better
@@ -227,12 +228,13 @@ def FilterSnapshots (s):
 		sorted (toDelete, key=operator.methodcaller ('GetTimestamp'), reverse=True))
 
 if __name__=='__main__':
+	syslog.openlog('zfs-snapshot')
 	pools = FindPools ()
 
 	for pool in pools:
+		syslog.syslog (syslog.LOG_INFO, 'Processing pool "{0}"'.format (pool))
 		CreateSnapshot (pool)
 		snapshots = GetSnapshots (pool)
 		activeSnapshots, obsoleteSnapshots = FilterSnapshots (snapshots)
-
 		for snapshot in obsoleteSnapshots:
 			DestroySnapshot (pool, snapshot)
