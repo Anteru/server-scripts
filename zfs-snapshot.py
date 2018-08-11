@@ -4,7 +4,7 @@
 
 from zfs import (
 	CreateSnapshot,
-	DestroySnapshot
+	DestroySnapshot,
 	FilterSnapshots,
 	FindPools,
 	GetSnapshots,
