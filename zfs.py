@@ -92,7 +92,7 @@ def DestroySnapshot (pool, snapshot):
 	if snapshot.Path != pool:
 		return
 
-	snapshotName = snapshot.Timestamp ().strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
+	snapshotName = snapshot.Timestamp.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
 	subprocess.check_call (['zfs', 'destroy', '-r', '{}@{}'.format (pool, snapshotName)])
 	syslog.syslog (syslog.LOG_INFO, 'Destroyed snapshot: {0}'.format (snapshotName))
 
