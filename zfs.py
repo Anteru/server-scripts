@@ -5,6 +5,7 @@ import subprocess
 import operator
 import time
 import syslog
+from configparser import ConfigParser
 
 class ZfsSnapshot:
 	'''Represents a single ZFS snapshot.'''
@@ -75,15 +76,25 @@ def GetSnapshots (pool):
 
 	return snapshots
 
-def CreateSnapshot (pool):
-	'''Create a shadow copy snapshot for the pool.'''
+def CreateSnapshot (pool, recursive=True, dryRun = False):
+	'''Create a shadow copy snapshot for the pool or filesystem.'''
 	dt = datetime.datetime.utcnow ()
 	snapshotName = dt.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
-	subprocess.check_call (['zfs', 'snapshot', '-r', '{}@{}'.format (pool, snapshotName)])
-	syslog.syslog (syslog.LOG_INFO, 'Created snapshot: {0}'.format (snapshotName))
+
+	args = ['zfs', 'snapshot']
+	if recursive:
+		args.append ('-r')
+	args.append ('{}@{}'.format (pool, snapshotName))
+
+	if dryRun:
+		print (' '.join (args))
+	else:
+		subprocess.check_call (args)
+		syslog.syslog (syslog.LOG_INFO, 'Created snapshot: {0}'.format (snapshotName))
+
 	return ZfsSnapshot (pool, 'shadow_copy', dt)
 
-def DestroySnapshot (pool, snapshot):
+def DestroySnapshot (pool, snapshot, recursive=True, dryRun = False):
 	'''Destroy a shadow copy snapshot in the provided pool.'''
 	# Safety checks
 	if snapshot.Name != 'shadow_copy':
@@ -93,12 +104,25 @@ def DestroySnapshot (pool, snapshot):
 		return
 
 	snapshotName = snapshot.Timestamp.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
-	subprocess.check_call (['zfs', 'destroy', '-r', '{}@{}'.format (pool, snapshotName)])
-	syslog.syslog (syslog.LOG_INFO, 'Destroyed snapshot: {0}'.format (snapshotName))
 
-def FindPools ():
+	args = ['zfs', 'destroy']
+	if recursive:
+		args.append ('-r')
+	args.append ('{}@{}'.format (pool, snapshotName))
+
+	if dryRun:
+		print (' '.join (args))
+	else:
+		subprocess.check_call (args)
+		syslog.syslog (syslog.LOG_INFO, 'Destroyed snapshot: {0}'.format (snapshotName))
+
+def GetPools ():
 	'''Find all ZFS pools.'''
 	zp = subprocess.check_output (['zpool', 'list', '-H', '-o', 'name']).decode ('utf-8').split ('\n')
+	return [l.strip () for l in zp if l]
+
+def GetFilesystems ():
+	zp = subprocess.check_output (['zfs', 'list', '-H', '-t', 'filesystem', '-o', 'name']).decode ('utf-8').split ('\n')
 	return [l.strip () for l in zp if l]
 
 class Filter:
@@ -166,17 +190,59 @@ class YearlyFilter (BucketFilter):
 			month=1, day=1, tzinfo=timestamp.tzinfo)
 
 __DEFAULT_FILTERS = [
-	# Filter name; minimum snapshot age for this filter to be active
-	#			   filter will be applied on all snapshots which are at
-	#			   least this old.
-	(PassthroughFilter (), datetime.timedelta ()),
-	(HourlyFilter (), datetime.timedelta (days=2)),
-	(DailyFilter (), datetime.timedelta (days=7)),
-	(WeeklyFilter (), datetime.timedelta (days=30)),
-	(MonthlyFilter (), datetime.timedelta (days=90)),
-	# Dummy entry, the monthly filter should only filter until this cutoff
-	(None, datetime.timedelta (days=365))
+	# Filter name; maximum age until this filter should get applied
+	(PassthroughFilter (), datetime.timedelta (days=2)),
+	(HourlyFilter (), datetime.timedelta (days=7)),
+	(DailyFilter (), datetime.timedelta (days=30)),
+	(WeeklyFilter (), datetime.timedelta (days=90)),
+	(MonthlyFilter (), datetime.timedelta (days=365)),
+	(YearlyFilter, datetime.timedelta.max),
 ]
+
+def __BuildFilters (s):
+	filters = [
+		('all', PassthroughFilter,),
+		('hourly', HourlyFilter,),
+		('daily', DailyFilter,),
+		('weekly', WeeklyFilter,),
+		('monthly', MonthlyFilter,),
+		('yearly', YearlyFilter,),
+	]
+
+	result = []
+	for filterName, filterClass in filters:
+		if filterName in s:
+			cutoff = s [filterName]
+
+			if cutoff == '0':
+				continue
+
+			if cutoff == 'unlimited':
+				cutoff = datetime.timedelta.max
+			else:
+				cutoff = datetime.timedelta (int(cutoff))
+			result.append ((filterClass (), cutoff,))
+
+	# Catch all
+	result.append ((None, datetime.timedelta.max,))
+
+	return result
+
+def ParseFilters (configFile):
+	config = ConfigParser ()
+	config.read_file (configFile)
+
+	filters = {}
+	for section in config.sections ():
+		filters [section] = __BuildFilters (config [section])
+
+	if '_default' not in config:
+		filters ['_default'] = __DEFAULT_FILTERS
+
+	return filters
+
+def GetDefaultFilters ():
+	return {'_default' : __DEFAULT_FILTERS}
 
 def FilterSnapshots (snapshots,
 	relativeTo = datetime.datetime.now (datetime.timezone.utc),
@@ -199,14 +265,18 @@ def FilterSnapshots (snapshots,
 	toKeep = set ()
 	remainingSnapshots = snapshots
 
-	for i in range (len (filters) - 1):
-		currentFilter, cutoff = filters [i]
-		nextCutoff = filters [i + 1][1]
-		# Partition the input into (cutoff0 ... cutoff1], (cutoff1 ... cutoffN]
-		# blocks
+	for currentFilter, cutoff in filters:
+		if not remainingSnapshots:
+			break
+		# Partition such that currentSnapshots are all < cutoff
 		currentSnapshots, remainingSnapshots = Partition (remainingSnapshots,
-			lambda snapshot: cutoff < (relativeTo - snapshot.Timestamp) <= nextCutoff)
+			# The assumption is that relativeTo is always >= snapshot.Timestamp
+			lambda snapshot: (relativeTo - snapshot.Timestamp) <= cutoff)
 		toKeep.update (currentFilter.Apply (currentSnapshots))
+
+	# If some entries remain, we want to keep them, as they're even older
+	# and there was no policy set for very old snapshots
+	toKeep.update (remainingSnapshots)
 
 	toDelete = set (snapshots)
 	toDelete.difference_update (toKeep)
