@@ -46,4 +46,4 @@ if __name__=='__main__':
 				filters=config ['_default'])
 
 		for snapshot in obsoleteSnapshots:
-			DestroySnapshot (filesystem, snapshot, dryRun = args.dry_run)
+			DestroySnapshot (filesystem, snapshot, recursive = False, dryRun = args.dry_run)
