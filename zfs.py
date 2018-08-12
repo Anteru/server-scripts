@@ -76,7 +76,7 @@ def GetSnapshots (pool):
 
 	return snapshots
 
-def CreateSnapshot (pool, recursive=True, dryRun = False):
+def CreateSnapshot (path, recursive=True, dryRun = False):
 	'''Create a shadow copy snapshot for the pool or filesystem.'''
 	dt = datetime.datetime.utcnow ()
 	snapshotName = dt.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
@@ -84,23 +84,24 @@ def CreateSnapshot (pool, recursive=True, dryRun = False):
 	args = ['zfs', 'snapshot']
 	if recursive:
 		args.append ('-r')
-	args.append ('{}@{}'.format (pool, snapshotName))
+	args.append ('{}@{}'.format (path, snapshotName))
 
 	if dryRun:
 		print (' '.join (args))
 	else:
 		subprocess.check_call (args)
-		syslog.syslog (syslog.LOG_INFO, 'Created snapshot: {0}'.format (snapshotName))
+		syslog.syslog (syslog.LOG_INFO,
+			'Created snapshot: {}@{}'.format (path, snapshotName))
 
-	return ZfsSnapshot (pool, 'shadow_copy', dt)
+	return ZfsSnapshot (path, 'shadow_copy', dt)
 
-def DestroySnapshot (pool, snapshot, recursive=True, dryRun = False):
+def DestroySnapshot (path, snapshot, recursive=True, dryRun = False):
 	'''Destroy a shadow copy snapshot in the provided pool.'''
 	# Safety checks
 	if snapshot.Name != 'shadow_copy':
 		return
 
-	if snapshot.Path != pool:
+	if snapshot.Path != path:
 		return
 
 	snapshotName = snapshot.Timestamp.strftime ('shadow_copy-%Y.%m.%d-%H.%M.%S')
@@ -108,13 +109,14 @@ def DestroySnapshot (pool, snapshot, recursive=True, dryRun = False):
 	args = ['zfs', 'destroy']
 	if recursive:
 		args.append ('-r')
-	args.append ('{}@{}'.format (pool, snapshotName))
+	args.append ('{}@{}'.format (path, snapshotName))
 
 	if dryRun:
 		print (' '.join (args))
 	else:
 		subprocess.check_call (args)
-		syslog.syslog (syslog.LOG_INFO, 'Destroyed snapshot: {0}'.format (snapshotName))
+		syslog.syslog (syslog.LOG_INFO,
+			'Destroyed snapshot: {}@{}'.format (path, snapshotName))
 
 def GetPools ():
 	'''Find all ZFS pools.'''
@@ -214,7 +216,7 @@ def __BuildFilters (s):
 		if filterName in s:
 			cutoff = s [filterName]
 
-			if cutoff == '0':
+			if cutoff == '0' or cutoff == 'disabled':
 				continue
 
 			if cutoff == 'unlimited':
@@ -222,9 +224,6 @@ def __BuildFilters (s):
 			else:
 				cutoff = datetime.timedelta (int(cutoff))
 			result.append ((filterClass (), cutoff,))
-
-	# Catch all
-	result.append ((None, datetime.timedelta.max,))
 
 	return result
 
@@ -245,7 +244,7 @@ def GetDefaultFilters ():
 	return {'_default' : __DEFAULT_FILTERS}
 
 def FilterSnapshots (snapshots,
-	relativeTo = datetime.datetime.now (datetime.timezone.utc),
+	currentTime = datetime.datetime.now (datetime.timezone.utc),
 	filters = __DEFAULT_FILTERS):
 	'''Filter snapshots and return a tuple of snapshots to keep and to delete.'''
 	def Partition (l, condition):
@@ -270,8 +269,8 @@ def FilterSnapshots (snapshots,
 			break
 		# Partition such that currentSnapshots are all < cutoff
 		currentSnapshots, remainingSnapshots = Partition (remainingSnapshots,
-			# The assumption is that relativeTo is always >= snapshot.Timestamp
-			lambda snapshot: (relativeTo - snapshot.Timestamp) <= cutoff)
+			# The assumption is that currentTime is always >= snapshot.Timestamp
+			lambda snapshot: (currentTime - snapshot.Timestamp) <= cutoff)
 		toKeep.update (currentFilter.Apply (currentSnapshots))
 
 	# If some entries remain, we want to keep them, as they're even older

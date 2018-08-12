@@ -75,7 +75,7 @@ def test_FilterSnapshotsDefaultForOlderIsKeep ():
     ]
 
     keep, delete = FilterSnapshots (snapshots,
-        datetime.datetime (2001, 1, 1),
+        currentTime = datetime.datetime (2001, 1, 1),
         filters = [(YearlyFilter (), datetime.timedelta (days=367),)])
 
     assert len(keep) == 3
@@ -120,7 +120,7 @@ def test_FilterSnapshotsWeeklyMonthly ():
     ]
 
     keep, delete = FilterSnapshots (snapshots,
-        datetime.datetime (2000, 4, 1),
+        currentTime = datetime.datetime (2000, 4, 1),
         filters = [(WeeklyFilter (), datetime.timedelta (30),),
                    (MonthlyFilter (), datetime.timedelta.max,)])
 
