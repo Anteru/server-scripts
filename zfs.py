@@ -227,21 +227,29 @@ def __BuildFilters (s):
 
 	return result
 
-def ParseFilters (configFile):
+def ParseConfiguration (configFile):
 	config = ConfigParser ()
 	config.read_file (configFile)
 
-	filters = {}
+	result = {}
 	for section in config.sections ():
-		filters [section] = __BuildFilters (config [section])
+		result [section] = {'filters' : __BuildFilters (config [section])}
+
+		# Must match the default config below
+		result [section]['recursive'] = config.getboolean (section, 'recursive', fallback=True)
+		result [section]['ignore'] = config.getboolean (section, 'ignore', fallback=False)
 
 	if '_default' not in config:
-		filters ['_default'] = __DEFAULT_FILTERS
+		result.update (GetDefaultConfiguration ())
 
-	return filters
+	return result
 
-def GetDefaultFilters ():
-	return {'_default' : __DEFAULT_FILTERS}
+def GetDefaultConfiguration ():
+	return {'_default' : {
+		'filters' : __DEFAULT_FILTERS,
+		'recursive' : True,
+		'ignore' : False}
+	}
 
 def FilterSnapshots (snapshots,
 	currentTime = datetime.datetime.now (datetime.timezone.utc),

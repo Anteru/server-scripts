@@ -7,7 +7,7 @@ from zfs import (
     YearlyFilter,
     WeeklyFilter,
     MonthlyFilter,
-    ParseFilters,
+    ParseConfiguration,
     PassthroughFilter,
 )
 
@@ -136,9 +136,9 @@ def test_FilterSnapshotsWeeklyMonthly ():
     assert (delete [0].Timestamp == datetime.datetime (2000, 2, 15, 12, 0, 0))
     assert (delete [-1].Timestamp == datetime.datetime (2000, 1, 1, 12, 0, 0))
 
-def test_FiltersFromConfig ():
+def test_ParseConfiguration ():
     from io import StringIO
-    config = StringIO ("""
+    configString = StringIO ("""
 [_default]
 
 all = 2
@@ -158,30 +158,30 @@ monthly = 365
 yearly = unlimited
     """)
 
-    filters = ParseFilters (config)
-    assert '_default' in filters
-    assert 'tank/VM' in filters
+    configuration = ParseConfiguration (configString)
+    assert '_default' in configuration
+    assert 'tank/VM' in configuration
 
-    assert isinstance (filters['_default'][0][0], PassthroughFilter)
-    assert isinstance (filters['_default'][1][0], HourlyFilter)
-    assert isinstance (filters['_default'][2][0], DailyFilter)
-    assert isinstance (filters['_default'][3][0], WeeklyFilter)
-    assert isinstance (filters['_default'][4][0], MonthlyFilter)
-    assert isinstance (filters['_default'][5][0], YearlyFilter)
+    assert isinstance (configuration['_default'][0][0], PassthroughFilter)
+    assert isinstance (configuration['_default'][1][0], HourlyFilter)
+    assert isinstance (configuration['_default'][2][0], DailyFilter)
+    assert isinstance (configuration['_default'][3][0], WeeklyFilter)
+    assert isinstance (configuration['_default'][4][0], MonthlyFilter)
+    assert isinstance (configuration['_default'][5][0], YearlyFilter)
 
-    assert filters['_default'][0][1] == datetime.timedelta (2)
-    assert filters['_default'][1][1] == datetime.timedelta (7)
-    assert filters['_default'][2][1] == datetime.timedelta (30)
-    assert filters['_default'][3][1] == datetime.timedelta (90)
-    assert filters['_default'][4][1] == datetime.timedelta (365)
-    assert filters['_default'][5][1] == datetime.timedelta.max
+    assert configuration['_default'][0][1] == datetime.timedelta (2)
+    assert configuration['_default'][1][1] == datetime.timedelta (7)
+    assert configuration['_default'][2][1] == datetime.timedelta (30)
+    assert configuration['_default'][3][1] == datetime.timedelta (90)
+    assert configuration['_default'][4][1] == datetime.timedelta (365)
+    assert configuration['_default'][5][1] == datetime.timedelta.max
 
-    assert isinstance (filters['tank/VM'][0][0], DailyFilter)
-    assert isinstance (filters['tank/VM'][1][0], WeeklyFilter)
-    assert isinstance (filters['tank/VM'][2][0], MonthlyFilter)
-    assert isinstance (filters['tank/VM'][3][0], YearlyFilter)
+    assert isinstance (configuration['tank/VM'][0][0], DailyFilter)
+    assert isinstance (configuration['tank/VM'][1][0], WeeklyFilter)
+    assert isinstance (configuration['tank/VM'][2][0], MonthlyFilter)
+    assert isinstance (configuration['tank/VM'][3][0], YearlyFilter)
 
-    assert filters['tank/VM'][0][1] == datetime.timedelta (30)
-    assert filters['tank/VM'][1][1] == datetime.timedelta (90)
-    assert filters['tank/VM'][2][1] == datetime.timedelta (365)
-    assert filters['tank/VM'][3][1] == datetime.timedelta.max
+    assert configuration['tank/VM'][0][1] == datetime.timedelta (30)
+    assert configuration['tank/VM'][1][1] == datetime.timedelta (90)
+    assert configuration['tank/VM'][2][1] == datetime.timedelta (365)
+    assert configuration['tank/VM'][3][1] == datetime.timedelta.max
