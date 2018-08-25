@@ -25,13 +25,14 @@ if __name__ == '__main__':
 
     config ['Backup'] = {
         'directory' : '/tank/VM',
-        'timeout' : 120
+        'timeout' : 120,
+	'include_storage' : False
     }
 
     config.read (['/etc/backup-vm.cfg'])
 
     backup_directory = config ['Backup']['directory']
-    backup_timeout = int (config ['Backup']['timeout'])
+    backup_timeout = config.getint ('Backup', 'timeout')
 
     conn = libvirt.open ('qemu:///system')
 
@@ -73,10 +74,11 @@ if __name__ == '__main__':
             syslog.syslog (syslog.LOG_INFO, 'Shut down VM "{0}", backing up'.format (name))
             startVM = True
 
-        for f in files:
-            syslog.syslog (syslog.LOG_INFO,
-                'Backing up "{0}" to "{1}" for VM "{2}"'.format (f, backup_directory, name))
-            shutil.copy (f, backup_directory)
+        if config.getboolean ('Backup', 'include_storage'):
+            for f in files:
+                syslog.syslog (syslog.LOG_INFO,
+                    'Backing up "{0}" to "{1}" for VM "{2}"'.format (f, backup_directory, name))
+                shutil.copy (f, backup_directory)
 
         syslog.syslog (syslog.LOG_INFO,
             'Backing up XML description for VM "{0}"'.format (name))
