@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 from zfs import (
     ZfsSnapshot,
+)
+
+from zfs.snapshot import (
     FilterSnapshots,
     HourlyFilter,
     DailyFilter,
@@ -13,116 +16,147 @@ from zfs import (
 
 import datetime
 
-def test_FilterSnapshotsYearly ():
+
+def test_FilterSnapshotsYearly():
     snapshots = [
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 2, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 3, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 4, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 5, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 6, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 7, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 8, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 9, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 10, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 11, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 12, 1, 12, 0, 0)),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 2, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 3, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 4, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 5, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 6, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 7, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 8, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 9, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 10, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 11, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 12, 1, 12, 0, 0)
+        ),
     ]
 
-    keep, delete = FilterSnapshots (snapshots,
-        datetime.datetime (2001, 1, 1),
-        filters = [(YearlyFilter (), datetime.timedelta.max,)])
+    keep, _ = FilterSnapshots(
+        snapshots,
+        datetime.datetime(2001, 1, 1),
+        filters=[
+            (
+                YearlyFilter(),
+                datetime.timedelta.max,
+            )
+        ],
+    )
 
     assert len(keep) == 1
     keep = list(keep)
-    assert keep[0].Timestamp == datetime.datetime (2000, 12, 1, 12, 0, 0)
+    assert keep[0].Timestamp == datetime.datetime(2000, 12, 1, 12, 0, 0)
 
 
-
-def test_FilterSnapshotsDefaultForOlderIsKeep ():
+def test_FilterSnapshotsDefaultForOlderIsKeep():
     snapshots = [
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (1998, 1, 1, 12, 0, 0)),
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (1999, 1, 1, 12, 0, 0)),
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 1, 12, 0, 0)),
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 12, 1, 12, 0, 0)),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(1998, 1, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(1999, 1, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 12, 1, 12, 0, 0)
+        ),
     ]
 
-    keep, delete = FilterSnapshots (snapshots,
-        currentTime = datetime.datetime (2001, 1, 1),
-        filters = [(YearlyFilter (), datetime.timedelta (days=367),)])
+    keep, delete = FilterSnapshots(
+        snapshots,
+        currentTime=datetime.datetime(2001, 1, 1),
+        filters=[
+            (
+                YearlyFilter(),
+                datetime.timedelta(days=367),
+            )
+        ],
+    )
 
     assert len(keep) == 3
 
-def test_FilterSnapshotsWeeklyMonthly ():
+
+def test_FilterSnapshotsWeeklyMonthly():
     snapshots = [
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 8, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 15, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 22, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 1, 29, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 2, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 2, 8, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 2, 15, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 2, 22, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 3, 1, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 3, 8, 12, 0, 0)),
-
-        ZfsSnapshot ('tank', 'shadow_copy',
-            datetime.datetime (2000, 3, 15, 12, 0, 0)),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 8, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 15, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 22, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 1, 29, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 2, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 2, 8, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 2, 15, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 2, 22, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 3, 1, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 3, 8, 12, 0, 0)
+        ),
+        ZfsSnapshot(
+            "tank", "shadow_copy", datetime.datetime(2000, 3, 15, 12, 0, 0)
+        ),
     ]
 
-    keep, delete = FilterSnapshots (snapshots,
-        currentTime = datetime.datetime (2000, 4, 1),
-        filters = [(WeeklyFilter (), datetime.timedelta (30),),
-                   (MonthlyFilter (), datetime.timedelta.max,)])
+    keep, delete = FilterSnapshots(
+        snapshots,
+        currentTime=datetime.datetime(2000, 4, 1),
+        filters=[
+            (
+                WeeklyFilter(),
+                datetime.timedelta(30),
+            ),
+            (
+                MonthlyFilter(),
+                datetime.timedelta.max,
+            ),
+        ],
+    )
 
     # 3 for March, 1 for February, 1 for January
     assert len(keep) == 5
@@ -133,12 +167,15 @@ def test_FilterSnapshotsWeeklyMonthly ():
     assert snapshots[4] in keep
 
     # We expect the list to be sorted newest to oldest
-    assert (delete [0].Timestamp == datetime.datetime (2000, 2, 15, 12, 0, 0))
-    assert (delete [-1].Timestamp == datetime.datetime (2000, 1, 1, 12, 0, 0))
+    assert delete[0].Timestamp == datetime.datetime(2000, 2, 15, 12, 0, 0)
+    assert delete[-1].Timestamp == datetime.datetime(2000, 1, 1, 12, 0, 0)
 
-def test_ParseConfiguration ():
+
+def test_ParseConfiguration():
     from io import StringIO
-    configString = StringIO ("""
+
+    configString = StringIO(
+        """
 [_default]
 
 all = 2
@@ -156,32 +193,41 @@ daily = 30
 weekly = 90
 monthly = 365
 yearly = unlimited
-    """)
+    """
+    )
 
-    configuration = ParseConfiguration (configString)
-    assert '_default' in configuration
-    assert 'tank/VM' in configuration
+    configuration = ParseConfiguration(configString)
+    assert "_default" in configuration
+    assert "tank/VM" in configuration
 
-    assert isinstance (configuration['_default'][0][0], PassthroughFilter)
-    assert isinstance (configuration['_default'][1][0], HourlyFilter)
-    assert isinstance (configuration['_default'][2][0], DailyFilter)
-    assert isinstance (configuration['_default'][3][0], WeeklyFilter)
-    assert isinstance (configuration['_default'][4][0], MonthlyFilter)
-    assert isinstance (configuration['_default'][5][0], YearlyFilter)
+    print(configuration)
 
-    assert configuration['_default'][0][1] == datetime.timedelta (2)
-    assert configuration['_default'][1][1] == datetime.timedelta (7)
-    assert configuration['_default'][2][1] == datetime.timedelta (30)
-    assert configuration['_default'][3][1] == datetime.timedelta (90)
-    assert configuration['_default'][4][1] == datetime.timedelta (365)
-    assert configuration['_default'][5][1] == datetime.timedelta.max
+    assert isinstance(
+        configuration["_default"]["filters"][0][0], PassthroughFilter
+    )
+    assert isinstance(configuration["_default"]["filters"][1][0], HourlyFilter)
+    assert isinstance(configuration["_default"]["filters"][2][0], DailyFilter)
+    assert isinstance(configuration["_default"]["filters"][3][0], WeeklyFilter)
+    assert isinstance(
+        configuration["_default"]["filters"][4][0], MonthlyFilter
+    )
+    assert isinstance(configuration["_default"]["filters"][5][0], YearlyFilter)
 
-    assert isinstance (configuration['tank/VM'][0][0], DailyFilter)
-    assert isinstance (configuration['tank/VM'][1][0], WeeklyFilter)
-    assert isinstance (configuration['tank/VM'][2][0], MonthlyFilter)
-    assert isinstance (configuration['tank/VM'][3][0], YearlyFilter)
+    assert configuration["_default"]["filters"][0][1] == datetime.timedelta(2)
+    assert configuration["_default"]["filters"][1][1] == datetime.timedelta(7)
+    assert configuration["_default"]["filters"][2][1] == datetime.timedelta(30)
+    assert configuration["_default"]["filters"][3][1] == datetime.timedelta(90)
+    assert configuration["_default"]["filters"][4][1] == datetime.timedelta(
+        365
+    )
+    assert configuration["_default"]["filters"][5][1] == datetime.timedelta.max
 
-    assert configuration['tank/VM'][0][1] == datetime.timedelta (30)
-    assert configuration['tank/VM'][1][1] == datetime.timedelta (90)
-    assert configuration['tank/VM'][2][1] == datetime.timedelta (365)
-    assert configuration['tank/VM'][3][1] == datetime.timedelta.max
+    assert isinstance(configuration["tank/VM"]["filters"][0][0], DailyFilter)
+    assert isinstance(configuration["tank/VM"]["filters"][1][0], WeeklyFilter)
+    assert isinstance(configuration["tank/VM"]["filters"][2][0], MonthlyFilter)
+    assert isinstance(configuration["tank/VM"]["filters"][3][0], YearlyFilter)
+
+    assert configuration["tank/VM"]["filters"][0][1] == datetime.timedelta(30)
+    assert configuration["tank/VM"]["filters"][1][1] == datetime.timedelta(90)
+    assert configuration["tank/VM"]["filters"][2][1] == datetime.timedelta(365)
+    assert configuration["tank/VM"]["filters"][3][1] == datetime.timedelta.max

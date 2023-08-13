@@ -2,65 +2,79 @@
 
 # SPDX-License-Identifier: BSD-2-Clause
 
+
 from zfs import (
-	CreateSnapshot,
-	DestroySnapshot,
-	FilterSnapshots,
-	GetFilesystems,
-	GetPools,
-	GetSnapshots,
-	ParseConfiguration,
-	GetDefaultConfiguration,
+    CreateSnapshot,
+    DestroySnapshot,
+    GetFilesystems,
+    GetPools,
+    GetSnapshots,
+)
+
+from zfs.snapshot import (
+    ParseConfiguration,
+    GetDefaultConfiguration,
+    FilterSnapshots
 )
 
 import syslog
 import argparse
+import datetime
 
-if __name__=='__main__':
-	parser = argparse.ArgumentParser ()
-	parser.add_argument ('-c', '--config', type=argparse.FileType ('r'))
-	parser.add_argument ('--dry-run', action='store_true')
+__version__ = '1.0'
 
-	args = parser.parse_args ()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=argparse.FileType('r'))
+    parser.add_argument('--dry-run', action='store_true')
 
-	if args.config is not None:
-		config = ParseConfiguration (args.config)
-	else:
-		config = GetDefaultConfiguration ()
+    args = parser.parse_args()
 
-	syslog.openlog('zfs-snapshot')
+    if args.config is not None:
+        config = ParseConfiguration(args.config)
+    else:
+        config = GetDefaultConfiguration()
 
-	for pool in GetPools ():
-		syslog.syslog (syslog.LOG_INFO,
-			'Processing pool "{0}"'.format (pool))
+    syslog.openlog('zfs-snapshot')
 
-		if pool in config:
-			recursive = config [pool]['recursive']
-			ignore = config [pool]['ignore']
-		else:
-			recursive = config ['_default']['recursive']
-			ignore = config ['_default']['ignore']
+    for pool in GetPools():
+        syslog.syslog(
+            syslog.LOG_INFO,
+            'Processing pool "{0}"'.format(pool))
 
-		if ignore:
-			syslog.syslog (syslog.LOG_INFO,
-				f'Skipping pool "{pool}"')
-			continue
+        if pool in config:
+            recursive = config[pool]['recursive']
+            ignore = config[pool]['ignore']
+        else:
+            recursive = config['_default']['recursive']
+            ignore = config['_default']['ignore']
 
-		CreateSnapshot (pool, dryRun = args.dry_run, recursive = recursive)
+        if ignore:
+            syslog.syslog(syslog.LOG_INFO, f'Skipping pool "{pool}"')
+            continue
 
-	for filesystem in GetFilesystems ():
-		snapshots = GetSnapshots (filesystem)
+        dt = datetime.datetime.utcnow()
+        snapshot_name = dt.strftime('shadow_copy-%Y.%m.%d-%H.%M.%S')
+        CreateSnapshot(pool, snapshot_name,
+                       dryRun=args.dry_run,
+                       recursive=recursive)
 
-		if filesystem in config:
-			if config [filesystem]['ignore']:
-				syslog.syslog (syslog.LOG_INFO,
-					f'Skipping filesystem "{filesystem}"')
-				continue
-			activeSnapshots, obsoleteSnapshots = FilterSnapshots (snapshots,
-				filters=config [filesystem]['filters'])
-		else:
-			activeSnapshots, obsoleteSnapshots = FilterSnapshots (snapshots,
-				filters=config ['_default']['filters'])
+    for filesystem in GetFilesystems():
+        snapshots = GetSnapshots(filesystem, prefix='shadow_copy')
 
-		for snapshot in obsoleteSnapshots:
-			DestroySnapshot (filesystem, snapshot, recursive = False, dryRun = args.dry_run)
+        if filesystem in config:
+            if config[filesystem]['ignore']:
+                syslog.syslog(
+                    syslog.LOG_INFO,
+                    f'Skipping filesystem "{filesystem}"')
+                continue
+            activeSnapshots, obsoleteSnapshots = FilterSnapshots(
+                snapshots, filters=config[filesystem]['filters'])
+        else:
+            activeSnapshots, obsoleteSnapshots = FilterSnapshots(
+                snapshots, filters=config['_default']['filters'])
+
+        for snapshot in obsoleteSnapshots:
+            DestroySnapshot(
+                snapshot.Path, snapshot.Name,
+                recursive=False, dryRun=args.dry_run)
