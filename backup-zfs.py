@@ -3,14 +3,19 @@
 # SPDX-License-Identifier: BSD-2-Clause
 import subprocess
 import argparse
-import json
+
+try:
+    import tomllib as toml
+except ImportError:
+    import tomli as toml
+
 import zfs
 
-__version__ = '1.0'
+__version__ = '1.1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', type=argparse.FileType('r'))
+    parser.add_argument('-c', '--config', type=argparse.FileType('rb'))
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('TARGET_POOL')
 
@@ -22,7 +27,7 @@ if __name__ == '__main__':
     }
 
     if args.config:
-        config = json.load(args.config)
+        config = toml.load(args.config)
 
     for fs in config['filesystems']:
         for snapshot in zfs.GetSnapshots(fs, config['backup-prefix']):
