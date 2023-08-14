@@ -46,14 +46,14 @@ class ZfsSnapshot:
         return (self._path, self._name, self._date,)
 
 
-def GetSnapshots(pool, prefix='shadow_copy'):
-    '''Get all snapshots for a pool as a list of ZfsSnapshot.
+def GetSnapshots(path, prefix='shadow_copy'):
+    '''Get all snapshots for a path as a list of ZfsSnapshot.
 
     Snapshots can be filtered by providing a prefix. The timestamp
     is parsed from the file system and provided in UTC.'''
     zfs_output = subprocess.check_output(
         ['zfs', 'list', '-Ht', 'snapshot', '-p',
-         '-o', 'name,creation', pool]).decode('utf-8').split('\n')
+         '-o', 'name,creation', path]).decode('utf-8').split('\n')
 
     snapshotNames = [line.strip() for line in zfs_output if line]
     snapshots = []
@@ -62,14 +62,17 @@ def GetSnapshots(pool, prefix='shadow_copy'):
         # ZFS probably doesn't support snapshot names containing '@' but to be
         # safe we specify max-splits at 1
         snapshot_name, timestamp = n.split()
-        path, name = snapshot_name.split('@', 1)
+        snapshot_path, name = snapshot_name.split('@', 1)
+
+        assert path == snapshot_path
+
         timestamp = datetime.datetime.fromtimestamp(int(timestamp),
                                                     tz=datetime.timezone.utc)
 
         if not name.startswith(prefix):
             continue
 
-        snapshots.append(ZfsSnapshot(path, name, timestamp))
+        snapshots.append(ZfsSnapshot(snapshot_path, name, timestamp))
 
     return snapshots
 
@@ -96,7 +99,7 @@ def CreateSnapshot(path, name, recursive=True, dryRun=False):
 
 
 def DestroySnapshot(path, name, recursive=True, dryRun=False):
-    '''Destroy a shadow copy snapshot in the provided pool.'''
+    '''Destroy a snapshot at the provided path with the provided name.'''
     snapshot_name = f'{path}@{name}'
 
     args = ['zfs', 'destroy']
@@ -119,8 +122,14 @@ def GetPools():
     return [line.strip() for line in zp if line]
 
 
-def GetFilesystems():
-    zp = subprocess.check_output([
+def GetFilesystems(path=None):
+    '''Find all ZFS filesystems'''
+    args = [
         'zfs', 'list', '-H', '-t', 'filesystem', '-o', 'name'
-    ]).decode('utf-8').split('\n')
+    ]
+
+    if path:
+        args.append(path)
+
+    zp = subprocess.check_output(args).decode('utf-8').split('\n')
     return [line.strip() for line in zp if line]
