@@ -1,6 +1,10 @@
 import operator
 import datetime
-from configparser import ConfigParser
+
+try:
+    import tomllib as toml
+except ImportError:
+    import tomli as toml
 
 
 class Filter:
@@ -139,7 +143,7 @@ def __BuildFilters(s):
         if filterName in s:
             cutoff = s[filterName]
 
-            if cutoff == "0" or cutoff == "disabled":
+            if cutoff == 0 or cutoff == "disabled":
                 continue
 
             if cutoff == "unlimited":
@@ -157,22 +161,19 @@ def __BuildFilters(s):
 
 
 def ParseConfiguration(configFile):
-    config = ConfigParser()
-    config.read_file(configFile)
+    result = toml.load(configFile)
 
-    result = {}
-    for section in config.sections():
-        result[section] = {"filters": __BuildFilters(config[section])}
+    for section in result.keys():
+        result[section] = {"filters": __BuildFilters(result[section])}
 
         # Must match the default config below
-        result[section]["recursive"] = config.getboolean(
-            section, "recursive", fallback=True
-        )
-        result[section]["ignore"] = config.getboolean(
-            section, "ignore", fallback=False
-        )
+        if 'recursive' not in result[section]:
+            result[section]['recursive'] = True
 
-    if "_default" not in config:
+        if 'ignore' not in result[section]:
+            result[section]['ignore'] = False
+
+    if "_default" not in result:
         result.update(GetDefaultConfiguration())
 
     return result

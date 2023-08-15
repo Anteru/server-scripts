@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
-from zfs import (
+from . import (
     ZfsSnapshot,
 )
 
-from zfs.snapshot import (
+from .snapshot import (
     FilterSnapshots,
     HourlyFilter,
     DailyFilter,
@@ -89,7 +89,7 @@ def test_FilterSnapshotsDefaultForOlderIsKeep():
         ),
     ]
 
-    keep, delete = FilterSnapshots(
+    keep, _ = FilterSnapshots(
         snapshots,
         currentTime=datetime.datetime(2001, 1, 1),
         filters=[
@@ -172,9 +172,9 @@ def test_FilterSnapshotsWeeklyMonthly():
 
 
 def test_ParseConfiguration():
-    from io import StringIO
+    from io import BytesIO
 
-    configString = StringIO(
+    configString = BytesIO(
         """
 [_default]
 
@@ -183,17 +183,17 @@ hourly = 7
 daily = 30
 weekly = 90
 monthly = 365
-yearly = unlimited
+yearly = "unlimited"
 
-[tank/VM]
+["tank/VM"]
 
 all = 0
 hourly = 0
 daily = 30
 weekly = 90
 monthly = 365
-yearly = unlimited
-    """
+yearly = "unlimited"
+    """.encode('utf-8')
     )
 
     configuration = ParseConfiguration(configString)
