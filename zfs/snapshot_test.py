@@ -200,8 +200,6 @@ yearly = "unlimited"
     assert "_default" in configuration
     assert "tank/VM" in configuration
 
-    print(configuration)
-
     assert isinstance(
         configuration["_default"]["filters"][0][0], PassthroughFilter
     )
@@ -231,3 +229,39 @@ yearly = "unlimited"
     assert configuration["tank/VM"]["filters"][1][1] == datetime.timedelta(90)
     assert configuration["tank/VM"]["filters"][2][1] == datetime.timedelta(365)
     assert configuration["tank/VM"]["filters"][3][1] == datetime.timedelta.max
+
+
+def test_ConfigOrderHasNoImpactOnSort():
+    from io import BytesIO
+
+    configString = BytesIO(
+        """
+[tank]
+
+hourly = 2
+daily = 5
+
+[dozer]
+
+daily = 5
+hourly = 2
+""".encode('utf-8')
+    )
+
+    configuration = ParseConfiguration(configString)
+
+    snapshots = []
+    for i in range(24):
+        snapshots.append(ZfsSnapshot('tank', str(i),
+                                     datetime.datetime(2000, 1, 1)
+                                     + datetime.timedelta(hours=i * 8)))
+        snapshots.append(ZfsSnapshot('dozer', str(i),
+                                     datetime.datetime(2000, 1, 1)
+                                     + datetime.timedelta(hours=i * 8)))
+
+    tank_filtered = FilterSnapshots(snapshots, datetime.datetime(2000, 1, 8),
+                                    configuration['tank']['filters'])
+    dozer_filtered = FilterSnapshots(snapshots, datetime.datetime(2000, 1, 8),
+                                     configuration['dozer']['filters'])
+
+    assert tank_filtered == dozer_filtered

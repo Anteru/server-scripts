@@ -10,6 +10,11 @@ except ImportError:
 class Filter:
     """Filters a list of snapshots."""
 
+    # Specifies how fine grained this filter works
+    # 0 = everything is kept
+    # Higher numbers indicate fewer things are kept (i.e. monthly, yearly, ...)
+    granularity = 0
+
     def Apply(self, snapshots):
         return snapshots
 
@@ -53,6 +58,8 @@ class BucketFilter(Filter):
 
 
 class HourlyFilter(BucketFilter):
+    granularity = 1
+
     def GetBucket(self, timestamp):
         return datetime.datetime(
             year=timestamp.year,
@@ -64,6 +71,8 @@ class HourlyFilter(BucketFilter):
 
 
 class DailyFilter(BucketFilter):
+    granularity = 24
+
     def GetBucket(self, timestamp):
         return datetime.datetime(
             year=timestamp.year,
@@ -74,6 +83,8 @@ class DailyFilter(BucketFilter):
 
 
 class WeeklyFilter(BucketFilter):
+    granularity = 168
+
     def GetBucket(self, timestamp):
         iso = timestamp.isocalendar()
         return (
@@ -83,6 +94,8 @@ class WeeklyFilter(BucketFilter):
 
 
 class MonthlyFilter(BucketFilter):
+    granularity = 720
+
     def GetBucket(self, timestamp):
         return datetime.datetime(
             year=timestamp.year,
@@ -93,6 +106,8 @@ class MonthlyFilter(BucketFilter):
 
 
 class YearlyFilter(BucketFilter):
+    granularity = 8760
+
     def GetBucket(self, timestamp):
         return datetime.datetime(
             year=timestamp.year, month=1, day=1, tzinfo=timestamp.tzinfo
@@ -111,51 +126,35 @@ __DEFAULT_FILTERS = [
 
 
 def __BuildFilters(s):
-    filters = [
-        (
-            "all",
-            PassthroughFilter,
-        ),
-        (
-            "hourly",
-            HourlyFilter,
-        ),
-        (
-            "daily",
-            DailyFilter,
-        ),
-        (
-            "weekly",
-            WeeklyFilter,
-        ),
-        (
-            "monthly",
-            MonthlyFilter,
-        ),
-        (
-            "yearly",
-            YearlyFilter,
-        ),
-    ]
+    filters = {
+        "all": PassthroughFilter,
+        "hourly": HourlyFilter,
+        "daily": DailyFilter,
+        "weekly": WeeklyFilter,
+        "monthly": MonthlyFilter,
+        "yearly": YearlyFilter,
+    }
 
     result = []
-    for filterName, filterClass in filters:
-        if filterName in s:
-            cutoff = s[filterName]
+    for filter_name, cutoff in s.items():
+        # TODO Remove, this is for back-compat
+        if filter_name not in filters:
+            continue
 
-            if cutoff == 0 or cutoff == "disabled":
-                continue
+        if cutoff == 0 or cutoff == "disabled":
+            continue
 
-            if cutoff == "unlimited":
-                cutoff = datetime.timedelta.max
-            else:
-                cutoff = datetime.timedelta(int(cutoff))
-            result.append(
-                (
-                    filterClass(),
-                    cutoff,
-                )
+        if cutoff == "unlimited":
+            cutoff = datetime.timedelta.max
+        else:
+            cutoff = datetime.timedelta(cutoff)
+
+        result.append(
+            (
+                filters[filter_name](),
+                cutoff,
             )
+        )
 
     return result
 
@@ -212,6 +211,8 @@ def FilterSnapshots(snapshots, currentTime=None, filters=__DEFAULT_FILTERS):
 
     toKeep = set()
     remainingSnapshots = snapshots
+
+    filters = sorted(filters, key=lambda x: x[0].granularity)
 
     for currentFilter, cutoff in filters:
         if not remainingSnapshots:
