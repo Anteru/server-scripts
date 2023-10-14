@@ -163,14 +163,13 @@ def ParseConfiguration(configFile):
     result = toml.load(configFile)
 
     for section in result.keys():
-        result[section] = {"filters": __BuildFilters(result[section])}
+        section_config = {"filters": __BuildFilters(result[section])}
 
         # Must match the default config below
-        if 'recursive' not in result[section]:
-            result[section]['recursive'] = True
+        section_config['recursive'] = result[section].get('recursive', True)
+        section_config['ignore'] = result[section].get('ignore', False)
 
-        if 'ignore' not in result[section]:
-            result[section]['ignore'] = False
+        result[section] = section_config
 
     if "_default" not in result:
         result.update(GetDefaultConfiguration())
