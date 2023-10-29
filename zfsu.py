@@ -113,7 +113,7 @@ def _backup(args):
 
         target_snapshots = zfs.GetSnapshots(target_path,
                                             config['backup-prefix'])
-        call = None
+
         if target_snapshots:
             # There is already a backup snapshot, so we want to create an
             # incremental snapshot
