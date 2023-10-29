@@ -45,6 +45,33 @@ class ZfsSnapshot:
     def __key(self):
         return (self._path, self._name, self._date,)
 
+def _SnapshotFromOutput(line):
+    # ZFS probably doesn't support snapshot names containing '@' but to be
+    # safe we specify max-splits at 1
+
+    snapshot_name, timestamp = line.split()
+    snapshot_path, name = snapshot_name.split('@', 1)
+
+    timestamp = datetime.datetime.fromtimestamp(int(timestamp),
+                                                tz=datetime.timezone.utc)
+
+    return ZfsSnapshot(snapshot_path, name, timestamp)
+
+
+def GetSnapshot(path, snapshot_name):
+    '''Try to get a ZFS snapshot for a given path and snapshot name'''
+    try:
+        zfs_output = subprocess.check_output(
+            ['zfs', 'list', '-Ht', 'snapshot', '-p',
+            '-o', 'name,creation', f'{path}@{snapshot_name}']
+            ).decode('utf-8').split('\n')
+        print(zfs_output)
+        # One line output, one trailing newline
+        assert len(zfs_output) == 2
+        return _SnapshotFromOutput(zfs_output[0].strip())
+    except:
+        return None
+
 
 def GetSnapshots(path, prefix='shadow_copy'):
     '''Get all snapshots for a path as a list of ZfsSnapshot.
@@ -59,20 +86,13 @@ def GetSnapshots(path, prefix='shadow_copy'):
     snapshots = []
 
     for n in snapshotNames:
-        # ZFS probably doesn't support snapshot names containing '@' but to be
-        # safe we specify max-splits at 1
-        snapshot_name, timestamp = n.split()
-        snapshot_path, name = snapshot_name.split('@', 1)
+        snapshot = _SnapshotFromOutput(n)
+        assert path == snapshot.Path
 
-        assert path == snapshot_path
-
-        timestamp = datetime.datetime.fromtimestamp(int(timestamp),
-                                                    tz=datetime.timezone.utc)
-
-        if not name.startswith(prefix):
+        if not snapshot.Name.startswith(prefix):
             continue
 
-        snapshots.append(ZfsSnapshot(snapshot_path, name, timestamp))
+        snapshots.append(snapshot)
 
     return snapshots
 
