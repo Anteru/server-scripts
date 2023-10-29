@@ -98,7 +98,7 @@ def _backup(args):
         dt = datetime.datetime.utcnow()
         snapshot_name = dt.strftime(f'{prefix}%Y-%m-%d')
 
-        if zfs.GetSnapshot(fs, snapshot_name):
+        if snapshot := zfs.GetSnapshot(fs, snapshot_name):
             print(f'Reusing snapshot {snapshot.Path}@{snapshot.Name}')
         else:
             print(f'Creating snapshot {fs}@{snapshot_name}')

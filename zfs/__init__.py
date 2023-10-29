@@ -3,6 +3,7 @@
 import datetime
 import subprocess
 import syslog
+from typing import Optional
 
 __version__ = '1.0'
 
@@ -58,7 +59,7 @@ def _SnapshotFromOutput(line):
     return ZfsSnapshot(snapshot_path, name, timestamp)
 
 
-def GetSnapshot(path, snapshot_name):
+def GetSnapshot(path, snapshot_name) -> Optional[ZfsSnapshot]:
     '''Try to get a ZFS snapshot for a given path and snapshot name'''
     try:
         zfs_output = subprocess.check_output(
@@ -73,15 +74,18 @@ def GetSnapshot(path, snapshot_name):
         return None
 
 
-def GetSnapshots(path, prefix='shadow_copy'):
+def GetSnapshots(path, prefix='shadow_copy') -> list[ZfsSnapshot]:
     '''Get all snapshots for a path as a list of ZfsSnapshot.
 
     Snapshots can be filtered by providing a prefix. The timestamp
     is parsed from the file system and provided in UTC.'''
-    zfs_output = subprocess.check_output(
-        ['zfs', 'list', '-Ht', 'snapshot', '-p',
-         '-o', 'name,creation', path]).decode('utf-8').split('\n')
-
+    try:
+        zfs_output = subprocess.check_output(
+            ['zfs', 'list', '-Ht', 'snapshot', '-p',
+            '-o', 'name,creation', path]).decode('utf-8').split('\n')
+    except:
+        return []
+    
     snapshotNames = [line.strip() for line in zfs_output if line]
     snapshots = []
 
@@ -97,7 +101,7 @@ def GetSnapshots(path, prefix='shadow_copy'):
     return snapshots
 
 
-def CreateSnapshot(path, name, recursive=True, dryRun=False):
+def CreateSnapshot(path, name, recursive=True, dryRun=False) -> ZfsSnapshot:
     '''Create a snapshot for the pool or filesystem.'''
 
     args = ['zfs', 'snapshot']
@@ -135,14 +139,14 @@ def DestroySnapshot(path, name, recursive=True, dryRun=False):
                       f'Destroyed snapshot: {snapshot_name}')
 
 
-def GetPools():
+def GetPools() -> list[str]:
     '''Find all ZFS pools.'''
     zp = subprocess.check_output(['zpool', 'list', '-H', '-o', 'name']).decode(
         'utf-8').split('\n')
     return [line.strip() for line in zp if line]
 
 
-def GetFilesystems(path=None):
+def GetFilesystems(path=None) -> list[str]:
     '''Find all ZFS filesystems'''
     args = [
         'zfs', 'list', '-H', '-t', 'filesystem', '-o', 'name'
