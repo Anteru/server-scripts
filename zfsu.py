@@ -92,28 +92,55 @@ def _backup(args):
         config = toml.load(args.config)
 
     for fs in config['filesystems']:
-        for snapshot in zfs.GetSnapshots(fs, config['backup-prefix']):
-            short_name = snapshot.Timestamp.strftime(
-                config['backup-prefix'] + '%Y-%m-%d')
+        # Create a new snapshot for the backup
+        dt = datetime.datetime.utcnow()
+        snapshot_name = dt.strftime('backup_%Y-%m-%d')
 
-            # TODO: Check if a snapshot of this name already exists, if not
-            # create one. If there's another snapshot with the same prefix,
-            # assume it's a backup and turn this into an incremental send
+        source_snapshots = zfs.GetSnapshots(fs, 'backup')
+        for snapshot in source_snapshots:
+            # This should be optimized once we have a zfs.GetSnapshot()
+            # function
+            if snapshot.Name == snapshot_name:
+                print(f'Reusing snapshot {snapshot.Path}@{snapshot.Name}')
+                break
+        else:
+            print(f'Creating snapshot {fs}@{snapshot_name}')
+            # We didn't find a matching snapshot
+            zfs.CreateSnapshot(fs, snapshot_name, recursive=False,
+                               dryRun=args.dry_run)
 
-            target_path = args.TARGET_POOL + '/' + \
-                snapshot.Path.replace('/', '_')
-            print(f"Creating backup of '{snapshot.Path}@{snapshot.Name}' to "
+        target_path = args.TARGET_POOL + '/' + fs.replace('/', '_')
+
+        target_snapshots = zfs.GetSnapshots(target_path,
+                                            config['backup-prefix'])
+        call = None
+        if target_snapshots:
+            # There is already a backup snapshot, so we want to create an
+            # incremental snapshot
+            last_target_snapshot = sorted(target_snapshots,
+                                          key=lambda x: x.Timestamp)[-1]
+
+            print(f"Creating backup of '{fs}@{snapshot_name}' to "
                   f"'{target_path}'")
 
-            call = ['zfs', 'send', f"{snapshot.Path}@{snapshot.Name}",
+            call = ['zfs', 'send',
+                    '-i', f"{fs}@{last_target_snapshot.Name}",
+                    f"{fs}@{snapshot_name}",
                     '|',
-                    'zfs', 'recv', '-Fuv', target_path
-            ]
+                    'zfs', 'recv', '-Fuv', target_path]
+        else:
+            print(f"Creating backup of '{fs}@{snapshot_name}' to "
+                  f"'{target_path}'")
 
-            if args.dry_run:
-                print(' '.join(call))
-            else:
-                subprocess.call(' '.join(call), shell=True)
+            call = ['zfs', 'send',
+                    f"{fs}@{snapshot_name}",
+                    '|',
+                    'zfs', 'recv', '-Fuv', target_path]
+
+        if args.dry_run:
+            print(' '.join(call))
+        else:
+            subprocess.call(' '.join(call), shell=True)
 
 
 if __name__ == '__main__':
