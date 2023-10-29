@@ -91,18 +91,15 @@ def _backup(args):
     if args.config:
         config = toml.load(args.config)
 
+    prefix = config['backup-prefix']
+
     for fs in config['filesystems']:
         # Create a new snapshot for the backup
         dt = datetime.datetime.utcnow()
-        snapshot_name = dt.strftime('backup_%Y-%m-%d')
+        snapshot_name = dt.strftime(f'{prefix}%Y-%m-%d')
 
-        source_snapshots = zfs.GetSnapshots(fs, 'backup')
-        for snapshot in source_snapshots:
-            # This should be optimized once we have a zfs.GetSnapshot()
-            # function
-            if snapshot.Name == snapshot_name:
-                print(f'Reusing snapshot {snapshot.Path}@{snapshot.Name}')
-                break
+        if zfs.GetSnapshot(fs, snapshot_name):
+            print(f'Reusing snapshot {snapshot.Path}@{snapshot.Name}')
         else:
             print(f'Creating snapshot {fs}@{snapshot_name}')
             # We didn't find a matching snapshot
@@ -111,8 +108,7 @@ def _backup(args):
 
         target_path = args.TARGET_POOL + '/' + fs.replace('/', '_')
 
-        target_snapshots = zfs.GetSnapshots(target_path,
-                                            config['backup-prefix'])
+        target_snapshots = zfs.GetSnapshots(target_path, prefix)
 
         if target_snapshots:
             # There is already a backup snapshot, so we want to create an
