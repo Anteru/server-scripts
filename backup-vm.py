@@ -9,9 +9,14 @@ from xml.etree import ElementTree
 import os
 import time
 import shutil
-import configparser
+import argparse
 
-__version__ = '1.0'
+try:
+    import tomllib as toml
+except ImportError:
+    import tomli as toml
+
+__version__ = '1.1'
 
 
 def GetFilesToBackup(domainXml):
@@ -26,18 +31,23 @@ def GetFilesToBackup(domainXml):
 
 
 if __name__ == "__main__":
-    config = configparser.ConfigParser()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=argparse.FileType('rb'))
 
-    config["Backup"] = {
-        "directory": "/tank/VM",
-        "timeout": 120,
-        "include_storage": False,
+    args = parser.parse_args()
+
+    config = {
+        'destination': '/tank/VM',
+        'timeout': 120,
+        'skip_storage': []
     }
 
-    config.read(["/etc/backup-vm.cfg"])
+    if args.config:
+        config.update (toml.load(args.config))
 
-    backup_directory = config["Backup"]["directory"]
-    backup_timeout = config.getint("Backup", "timeout")
+    backup_directory = config['destination']
+    backup_timeout = config['timeout']
+    skip_storage = set(map(str.lower, config['skip_storage']))
 
     conn = libvirt.open("qemu:///system")
 
@@ -52,14 +62,15 @@ if __name__ == "__main__":
         syslog.syslog(syslog.LOG_ERR, "Could not list domains")
 
     for dom in domains:
-        name = dom.name()
+        name: str = dom.name()
+
         xml = dom.XMLDesc(0)
         startVM = False
 
         root = ElementTree.fromstring(xml)
-        files = GetFilesToBackup(root)
 
-        if dom.isActive():
+        # If we skip storage, there's no point in shutting down the VM
+        if dom.isActive() and name.lower() not in skip_storage:
             syslog.syslog(
                 syslog.LOG_INFO, 'Shutting down active VM "{0}"'.format(name)
             )
@@ -85,7 +96,8 @@ if __name__ == "__main__":
             )
             startVM = True
 
-        if config.getboolean("Backup", "include_storage"):
+        if name.lower() not in skip_storage:
+            files = GetFilesToBackup(root)
             for f in files:
                 syslog.syslog(
                     syslog.LOG_INFO,
@@ -94,6 +106,9 @@ if __name__ == "__main__":
                     ),
                 )
                 shutil.copy(f, backup_directory)
+        else:
+            syslog.syslog(syslog.LOG_INFO,
+                          f'Skipping storage for VM "{name}"')
 
         syslog.syslog(
             syslog.LOG_INFO,
