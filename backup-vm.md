@@ -23,12 +23,12 @@ Configuration format
 The configuration uses [TOML](https://toml.io). If not specified, the defaults will be used, which will backup all VMs to `/tank/VM`.
 
 ```toml
-destination = /tank/VM
+destination = "/tank/VM"
 
 # Timeout to wait during shutoff in seconds
 timeout = 120
 
 # For each VM in this list, the storage files won't be backed up
 # This is case-insensitive
-skip_storage = []
+skip_storage = ["simple_vm"]
 ```
