@@ -95,7 +95,7 @@ def _backup(args):
 
     for fs in config['filesystems']:
         # Create a new snapshot for the backup
-        dt = datetime.datetime.utcnow()
+        dt = datetime.datetime.now(datetime.UTC)
         snapshot_name = dt.strftime(f'{prefix}%Y-%m-%d')
 
         if snapshot := zfs.GetSnapshot(fs, snapshot_name):
