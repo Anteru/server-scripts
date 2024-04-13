@@ -16,6 +16,9 @@ Changelog
 - 1.1:
   - Change configuration format to TOML
   - Allow ignoring storage of certain VMs (in which case only the XML definition is saved.)
+- 1.2:
+  - Add `exclude` to exclude VMs from the backup
+  - Add `skip_copy_if_same` to skip copying VM images when nothing changed (default: `true`)
 
 Configuration format
 --------------------
@@ -31,4 +34,10 @@ timeout = 120
 # For each VM in this list, the storage files won't be backed up
 # This is case-insensitive
 skip_storage = ["simple_vm"]
+
+# Exclude all VMs in this list from the backup
+exclude = ["test_vm"]
+
+# Skip the copy if the source and destination file image are the same
+skip_copy_if_same = true
 ```

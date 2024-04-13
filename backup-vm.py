@@ -10,13 +10,15 @@ import os
 import time
 import shutil
 import argparse
+import hashlib
+import pathlib
 
 try:
     import tomllib as toml
 except ImportError:
     import tomli as toml
 
-__version__ = '1.1'
+__version__ = '1.2'
 
 
 def GetFilesToBackup(domainXml):
@@ -29,6 +31,14 @@ def GetFilesToBackup(domainXml):
 
     return files
 
+def compute_checksums(path):
+    hasher = hashlib.sha1(usedforsecurity=False)
+
+    with open(path, 'rb') as input_file:
+        while buffer := input_file.read(64 << 20):
+            hasher.update(buffer)
+    return hasher.digest()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -39,7 +49,12 @@ if __name__ == "__main__":
     config = {
         'destination': '/tank/VM',
         'timeout': 120,
-        'skip_storage': []
+        'skip_storage': [],
+        # This will calculate checksum files and skip copies if files
+        # turn out to be the same
+        'skip_copy_if_same': True,
+        # Exclude the following VMs
+        'exclude' : []
     }
 
     if args.config:
@@ -48,6 +63,7 @@ if __name__ == "__main__":
     backup_directory = config['destination']
     backup_timeout = config['timeout']
     skip_storage = set(map(str.lower, config['skip_storage']))
+    ignore_list = set(map(str.lower, config['exclude']))
 
     conn = libvirt.open("qemu:///system")
 
@@ -63,6 +79,10 @@ if __name__ == "__main__":
 
     for dom in domains:
         name: str = dom.name()
+
+        if name.lower() in ignore_list:
+            syslog.syslog(syslog.LOG_INFO, f'Ignoring VM "{name}"')
+            continue
 
         xml = dom.XMLDesc(0)
         startVM = False
@@ -105,7 +125,28 @@ if __name__ == "__main__":
                         f, backup_directory, name
                     ),
                 )
-                shutil.copy(f, backup_directory)
+
+                if config['skip_copy_if_same']:
+                    destination_file = pathlib.Path(backup_directory) / \
+                        pathlib.Path(f).name
+                    hash_file = destination_file.with_suffix('.hash')
+
+                    destination_hash = None
+                    if hash_file.exists():
+                        destination_hash = hash_file.read_bytes()
+
+                    source_hash = compute_checksums(f)
+
+                    if destination_hash != source_hash:
+                        syslog.syslog(syslog.LOG_INFO,
+                            'Files changed, executing copy')
+                        shutil.copy(f, backup_directory)
+                        hash_file.write_bytes(source_hash)
+                    else:
+                        syslog.syslog(syslog.LOG_INFO,
+                            'No file changes, skipping copy')
+                else:
+                    shutil.copy(f, backup_directory)
         else:
             syslog.syslog(syslog.LOG_INFO,
                           f'Skipping storage for VM "{name}"')
