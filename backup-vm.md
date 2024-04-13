@@ -19,6 +19,9 @@ Changelog
 - 1.2:
   - Add `exclude` to exclude VMs from the backup
   - Add `skip_copy_if_same` to skip copying VM images when nothing changed (default: `true`)
+- 1.3:
+  - Refactor code
+  - Put each VM into a directory
 
 Configuration format
 --------------------
