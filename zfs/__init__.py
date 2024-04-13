@@ -46,6 +46,7 @@ class ZfsSnapshot:
     def __key(self):
         return (self._path, self._name, self._date,)
 
+
 def _SnapshotFromOutput(line):
     # ZFS probably doesn't support snapshot names containing '@' but to be
     # safe we specify max-splits at 1
@@ -64,13 +65,13 @@ def GetSnapshot(path, snapshot_name) -> Optional[ZfsSnapshot]:
     try:
         zfs_output = subprocess.check_output(
             ['zfs', 'list', '-Ht', 'snapshot', '-p',
-            '-o', 'name,creation', f'{path}@{snapshot_name}']
+             '-o', 'name,creation', f'{path}@{snapshot_name}']
             ).decode('utf-8').split('\n')
         print(zfs_output)
         # One line output, one trailing newline
         assert len(zfs_output) == 2
         return _SnapshotFromOutput(zfs_output[0].strip())
-    except:
+    except Exception:
         return None
 
 
@@ -82,10 +83,10 @@ def GetSnapshots(path, prefix='shadow_copy') -> list[ZfsSnapshot]:
     try:
         zfs_output = subprocess.check_output(
             ['zfs', 'list', '-Ht', 'snapshot', '-p',
-            '-o', 'name,creation', path]).decode('utf-8').split('\n')
-    except:
+             '-o', 'name,creation', path]).decode('utf-8').split('\n')
+    except Exception:
         return []
-    
+
     snapshotNames = [line.strip() for line in zfs_output if line]
     snapshots = []
 
