@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import datetime
+from datetime import datetime, timezone
 import configparser
 import imaplib
 import email.utils
@@ -19,7 +19,7 @@ def Process(config):
     if not os.path.exists(config["backup"]["path"]):
         os.makedirs(config["backup"]["path"], exist_ok=True)
 
-    processTime = datetime.datetime.utcnow()
+    processTime = datetime.now(timezone.utc)
     cutoffTime = processTime - datetime.timedelta(
         days=int(config["options"]["min_age"])
     )
