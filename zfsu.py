@@ -8,7 +8,7 @@ import zfs.snapshot
 
 import syslog
 import argparse
-import datetime
+from datetime import datetime, timezone
 from contextlib import ContextDecorator
 import subprocess
 
@@ -54,7 +54,7 @@ def _snapshot(args):
             syslog.syslog(syslog.LOG_INFO, f'Skipping pool "{pool}"')
             continue
 
-        dt = datetime.datetime.utcnow()
+        dt = datetime.now(timezone.utc)
         snapshot_name = dt.strftime('shadow_copy-%Y.%m.%d-%H.%M.%S')
         zfs.CreateSnapshot(pool, snapshot_name,
                            dryRun=args.dry_run,
@@ -95,7 +95,7 @@ def _backup(args):
 
     for fs in config['filesystems']:
         # Create a new snapshot for the backup
-        dt = datetime.datetime.now(datetime.UTC)
+        dt = datetime.now(timezone.utc)
         snapshot_name = dt.strftime(f'{prefix}%Y-%m-%d')
 
         if snapshot := zfs.GetSnapshot(fs, snapshot_name):
