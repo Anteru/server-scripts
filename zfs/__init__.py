@@ -158,3 +158,12 @@ def GetFilesystems(path=None) -> list[str]:
 
     zp = subprocess.check_output(args).decode('utf-8').split('\n')
     return [line.strip() for line in zp if line]
+
+def GetVolumes() -> list[str]:
+    '''Find all volumes'''
+    args = [
+        'zfs', 'list', '-H', '-t', 'volume', '-o', 'name'
+    ]
+
+    zp = subprocess.check_output(args).decode('utf-8').split('\n')
+    return [line.strip() for line in zp if line]

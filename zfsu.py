@@ -60,17 +60,17 @@ def _snapshot(args):
                            dryRun=args.dry_run,
                            recursive=recursive)
 
-    for filesystem in zfs.GetFilesystems():
-        snapshots = zfs.GetSnapshots(filesystem, prefix='shadow_copy')
+    def filter_snapshots(path):
+        snapshots = zfs.GetSnapshots(path, prefix='shadow_copy')
 
-        if filesystem in config:
-            if config[filesystem]['ignore']:
+        if path in config:
+            if config[path]['ignore']:
                 syslog.syslog(
                     syslog.LOG_INFO,
-                    f'Skipping filesystem "{filesystem}"')
-                continue
+                    f'Skipping "{path}"')
+                return
             _, obsoleteSnapshots = zfs.snapshot.FilterSnapshots(
-                snapshots, filters=config[filesystem]['filters'])
+                snapshots, filters=config[path]['filters'])
         else:
             _, obsoleteSnapshots = zfs.snapshot.FilterSnapshots(
                 snapshots, filters=config['_default']['filters'])
@@ -79,6 +79,13 @@ def _snapshot(args):
             zfs.DestroySnapshot(
                 snapshot.Path, snapshot.Name,
                 recursive=False, dryRun=args.dry_run)
+
+    for path in zfs.GetFilesystems():
+        filter_snapshots(path)
+
+    for path in zfs.GetVolumes():
+        filter_snapshots(path)
+
 
 
 @syslog_context('zfs-backup')
