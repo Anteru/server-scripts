@@ -67,7 +67,7 @@ def GetSnapshot(path, snapshot_name) -> Optional[ZfsSnapshot]:
             ['zfs', 'list', '-Ht', 'snapshot', '-p',
              '-o', 'name,creation', f'{path}@{snapshot_name}']
             ).decode('utf-8').split('\n')
-        print(zfs_output)
+
         # One line output, one trailing newline
         assert len(zfs_output) == 2
         return _SnapshotFromOutput(zfs_output[0].strip())
