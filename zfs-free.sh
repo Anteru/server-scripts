@@ -1,7 +1,12 @@
 #!/bin/bash
-CUR_PATH=`pwd`
+ZFS=/sbin/zfs   # or /usr/local/sbin/zfs on FreeBSD/TrueNAS
 
-USED=$((`zfs get -o value -Hp used $CUR_PATH` / 1024)) > /dev/null
-AVAIL=$((`zfs get -o value -Hp available $CUR_PATH` / 1024)) > /dev/null
-TOTAL=$(($USED+$AVAIL)) > /dev/null
-echo $TOTAL $AVAIL 1024
+CUR_PATH=$(realpath "$1")
+DATASET=$($ZFS list -H -o name "$CUR_PATH" 2>/dev/null)
+POOL=${DATASET%%/*}
+
+USED=$(( $($ZFS get -Hp -o value used      "$POOL") / 1024 ))
+AVAIL=$(( $($ZFS get -Hp -o value available "$POOL") / 1024 ))
+TOTAL=$(( USED + AVAIL ))
+
+echo "$TOTAL $AVAIL 1024"
