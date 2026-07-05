@@ -6,7 +6,6 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import configparser
 import imaplib
-import email.utils
 import mailbox
 import os
 import email
