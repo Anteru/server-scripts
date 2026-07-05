@@ -22,6 +22,8 @@ Changelog
 - 1.3:
   - Refactor code
   - Put each VM into a directory
+- 1.4:
+  - Support wildcards in `exclude`. A pattern containing a `*` is now treated as a wildcard pattern.
 
 Configuration format
 --------------------
@@ -39,7 +41,7 @@ timeout = 120
 skip_storage = ["simple_vm"]
 
 # Exclude all VMs in this list from the backup
-exclude = ["test_vm"]
+exclude = ["test_vm", "foo-*"]
 
 # Skip the copy if the source and destination file image are the same
 skip_copy_if_same = true

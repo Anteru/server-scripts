@@ -12,13 +12,14 @@ import shutil
 import argparse
 import hashlib
 import pathlib
+import fnmatch
 
 try:
     import tomllib as toml
 except ImportError:
     import tomli as toml
 
-__version__ = '1.3'
+__version__ = '1.4'
 
 
 def _get_files_for_vm(domainXml) -> list[pathlib.Path]:
@@ -106,6 +107,15 @@ def _shutdown_vm(name: str, timeout: int, domain: libvirt.virDomain) -> bool:
     )
     return True
 
+def _ignore_vm(name: str, ignore_list: set[str], ignore_patterns: list[str]):
+    if name.lower() in ignore_list:
+        return True
+    for pattern in ignore_patterns:
+        if fnmatch.fnmatch(name.lower(), pattern):
+            return True
+    
+    return False
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -130,7 +140,9 @@ if __name__ == "__main__":
     backup_root = pathlib.Path(config['destination'])
     backup_timeout = config['timeout']
     skip_storage = set(map(str.lower, config['skip_storage']))
-    ignore_list = set(map(str.lower, config['exclude']))
+    ignore_list = set(map(str.lower, 
+                          [e for e in config['exclude'] if not '*' in e]))
+    ignore_patterns = [e for e in config['exclude'] if '*' in e]
 
     conn = libvirt.open("qemu:///system")
 
@@ -147,7 +159,7 @@ if __name__ == "__main__":
     for dom in domains:
         name: str = dom.name()
 
-        if name.lower() in ignore_list:
+        if _ignore_vm(name.lower(), ignore_list, ignore_patterns):
             syslog.syslog(syslog.LOG_INFO, f'Ignoring VM "{name}"')
             continue
 
